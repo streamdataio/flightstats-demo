@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" href="css/flightstats-demo.css">
+    <style type="text/css">
+
+    </style>
+    <script src="js/streamdataio.min.js"></script>
+    <script src="js/underscore.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false"></script>
+    <script src="http://google-maps-utility-library-v3.googlecode.com/svn/tags/markerwithlabel/1.0.1/src/markerwithlabel.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fast-json-patch/0.5.2/json-patch-duplex.min.js"></script>
+    <script type="text/javascript">
+
+      // ADD YOUR STREAMDATA.IO API KEY PAIR HERE
+      var flightStatsAppID = "[YOUR_FLIGHTSTATS_APP_ID]";
+      var flightStatsAppToken = "[YOUR_FLIGHTSTATS_APP_TOKEN]"; 
+      streamdataio.Pk = "[YOUR_STREAMDATA.IO_PUBLIC_KEY]";
+      streamdataio.pk = "[YOUR_STREAMDATA.IO_PRIVATE_KEY]";
+      
+      var countryPositions = [];
+      countryPositions['FR']  = new google.maps.LatLng(46.227638,2.213749);
+      countryPositions['GB'] = new google.maps.LatLng(52.355518, -1.17432);
+
+      var map;
+      var airports = [];
+      var departures = [];
+      var arrivals = [];
+      var metarWeatherInfo;
+      var windowInfotemplate;
+      var weatherMetarTemplate;
+      var lastOpenedInfoWindow;
+      var selectedCountryCode;
+      var departuresEventSource;
+      var arrivalsEventSource;
+      var weatherEventSource;
+
+  
+      //When the window is loaded, run the initialize function to setup the map
+      google.maps.event.addDomListener(window, 'load', initialize);   
+
+      function initialize() {
+
+        selectedCountryCode = 'FR';
+
+        var map_canvas = document.getElementById('map_canvas');
+        var mapOptions = {
+          zoom: 7,
+          center: countryPositions['FR']
+        }
+        map = new google.maps.Map(document.getElementById('map-canvas'), mapOptions);
+        map.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(document.getElementById('legend'));
+
+        windowInfotemplate = _.template(createWindowInfoTemplate());
+        weatherMetarTemplate = _.template(createWeatherMetarTemplate());
+
+        addAirportsToMap(selectedCountryCode);
+      }
+
+      function addAirportsToMap(contryCode){
+        var airportsURL = "https://api.flightstats.com/flex/airports/rest/v1/json/countryCode/"+ contryCode +
+        "?appId="+flightStatsAppID+"&appKey="+flightStatsAppToken;
+        
+        //var airportsURL = "http://localhost/flightstats-demo/airports.json"
+        
+        $.getJSON(airportsURL, function( data ) {  
+          data['airports'].forEach(function( item ) {
+            var key = item.fs;
+            if (typeof key !== 'undefined') {
+              airports[key] = item;
+            }
+          });
+          addMarkersToMap();
+        });
+      }
+
+      function addMarkersToMap() {
+        for (var key in airports){
+          var airport = airports[key];
+          var airportLatlng = new google.maps.LatLng(airport.latitude,airport.longitude);
+
+          labelClass = (airport.active === true)?"mapIconLabelGreen":"mapIconLabelRed"
+
+          var marker = new google.maps.Marker({
+            title: airport.name,
+            position: airportLatlng,
+            map: map,
+            icon: "./img/Takeoff_the_plane_32.png"
+          });
+
+          var content = windowInfotemplate({ airportName: airport.name, 
+                                             airportCode: airport.fs, 
+                                             airportStatus: airport.active });
+
+          var airportCode = airport.fs;
+
+          var infowindow = new google.maps.InfoWindow();
+
+          google.maps.event.addListener(marker,'click', (function(marker,content,airportCode,infowindow) { 
+              return function() {
+                  unsubscribeAirportInfo();
+
+                  if(lastOpenedInfoWindow) {
+                    lastOpenedInfoWindow.close();
+                  }
+                  subscribeAirportInfo(airportCode, infowindow);
+                  lastOpenedInfoWindow = infowindow;
+                  infowindow.setContent(content);
+                  infowindow.open(map,marker);
+              };
+          })(marker,content,airportCode,infowindow));
+
+          google.maps.event.addListener(infowindow,'closeclick',function(){
+            unsubscribeAirportInfo();
+          });   
+        }
+      }
+
+      function subscribeAirportInfo(airportCode, infowindow) {
+        
+        var fidsDeparturesURL = "https://api.flightstats.com/flex/fids/rest/v1/json/"+airportCode+"/departures?appId=" + flightStatsAppID + 
+                            "&appKey=" + flightStatsAppToken + "&requestedFields=airlineCode%2CflightNumber%2Ccity%2CcurrentTime%2Cgate%2Cremarks" + 
+                            "&lateMinutes=15&useRunwayTimes=false&excludeCargoOnlyFlights=false&codeType=fs";
+
+        var fidsArrivalsURL = "https://api.flightstats.com/flex/fids/rest/v1/json/"+airportCode+"/arrivals?appId=" + flightStatsAppID + 
+                            "&appKey=" + flightStatsAppToken + "&requestedFields=airlineCode%2CflightNumber%2Ccity%2CcurrentTime%2Cgate%2Cremarks" + 
+                            "&lateMinutes=15&useRunwayTimes=false&excludeCargoOnlyFlights=false&codeType=fs";
+
+        var weatherMetarURL = "https://api.flightstats.com/flex/weather/rest/v1/json/metar/" + airportCode + 
+        "?appId=" + flightStatsAppID + "&appKey=" + flightStatsAppToken + "&codeType=fs";
+
+        /* Create and subscribe to 3 differents sources of information for 
+        currently selected airport (arrivals, departures and weather) */
+
+        departuresEventSource = streamdataio.createEventSource(fidsDeparturesURL);
+        departuresEventSource.onData(function(data){
+         // initialize your data with the initial snapshot
+         departures = data;
+         $('#tab-content1').html(createFidsTable(departures['fidsData']));
+        }).onPatch(function(patches){
+          //update the data with the provided patch
+          jsonpatch.apply(departures, patches);
+          $('#tab-content1').html(createFidsTable(departures['fidsData']));
+        }).onError(function(error){
+           console.error(error);
+        });
+
+        arrivalsEventSource = streamdataio.createEventSource(fidsArrivalsURL);
+        arrivalsEventSource.onData(function(data){
+         // initialize your data with the initial snapshot
+         arrivals = data;
+         $('#tab-content2').html(createFidsTable(arrivals['fidsData']));
+
+        }).onPatch(function(patches){
+          // update the data with the provided patch
+          jsonpatch.apply(arrivals, patches);
+          $('#tab-content2').html(createFidsTable(arrivals['fidsData']));
+
+        }).onError(function(error){
+           console.error(error);
+        });
+
+        weatherEventSource = streamdataio.createEventSource(weatherMetarURL);
+        weatherEventSource.onData(function(data){
+          // initialize your data with the initial snapshot
+          if(typeof data['metar'] !== 'undefined') {
+            metarWeatherInfo = data;
+            $('#tab-content3').html(weatherMetarTemplate(metarWeatherInfo['metar']));
+          } else {
+            $('#tab-content3').html("No Metar Info Available.");
+            weatherEventSource.close();
+          }
+        }).onPatch(function(patches){
+          // update the data with the provided patch
+          jsonpatch.apply(metarWeatherInfo, patches);
+          $('#tab-content3').html(weatherMetarTemplate(metarWeatherInfo['metar']));
+          blinkMetarUI(patches);
+        }).onError(function(error){
+           console.error(error);
+        });
+
+        departuresEventSource.open();
+        arrivalsEventSource.open();
+        weatherEventSource.open();
+      }
+
+      function unsubscribeAirportInfo(){
+        if(typeof departuresEventSource !== 'undefined') {
+          departuresEventSource.close();
+        }
+        if(typeof arrivalsEventSource !== 'undefined') {
+          arrivalsEventSource.close();
+        }
+        if(typeof weatherEventSource !== 'undefined') {
+          weatherEventSource.close();
+        }
+      }
+
+      function changeCountry() {
+        aiports = [];
+        arrivals = [];
+        departures = [];
+        markers = [];
+
+        selectedCountryCode = document.getElementById('country').value;
+        addAirportsToMap(selectedCountryCode);
+        map.panTo(countryPositions[selectedCountryCode]);
+      }
+
+      function blinkMetarUI(patches) {
+        var checkValue = function(patch, metric) {
+            if(patch.path.indexOf(metric) >= 0) {
+              $("."+metric+" > b").css("color", "red");
+              setTimeout(function() {
+              $("."+metric+" > b").css("color", "#565656")}, 2000); 
+            }
+        }
+        patches.forEach(function(patch) {
+          checkValue(patch, "reportTime");
+          checkValue(patch, "temperatureCelsius");
+          checkValue(patch, "speedKnots");
+          checkValue(patch, "dewPointCelsius");
+          checkValue(patch, "directionIsVariable");
+          checkValue(patch, "miles");       
+        });
+      }
+                        
+      function createFidsTable(fidsInfo) {
+        
+        var htmlContent;
+
+        if(fidsInfo == undefined || fidsInfo.length < 1 ) {
+          htmlContent = 'No data available';
+        } else {
+          htmlContent = "<table class='FIDSTable'>" +
+                                 "<tr>" +
+                                   "<td name='currentTime'>Time</td>" +
+                                   "<td name='airlineCode'>Airline</td>" +
+                                   "<td name='flightNumber'>Flight #</td>" +
+                                   "<td name='city'>Destination</td>" +
+                                   "<td name='gate'>Gate</td>" +
+                                   "<td name='remarks'>Remarks</td>" +
+                                 "</tr>";
+
+          fidsInfo.forEach(function(entry) {   
+              htmlContent += "<tr><td>" + entry.currentTime + "</td>" +
+                                  "<td>" + entry.airlineCode + "</td>" + 
+                                  "<td>" + entry.flightNumber + "</td>" + 
+                                  "<td>" + entry.city + "</td>" + 
+                                  "<td>" + entry.gate + "</td>" +              
+                                  "<td>" + entry.remarks + "</td></tr>";
+
+          });
+          htmlContent += "</table>";
+        }
+        return htmlContent;        
+      }
+
+      function createWeatherMetarTemplate() {
+
+        return "<div id='metarInfo'>" +
+                  "<div class='report'>Report: <b><%= report %></b><div>" +
+                  "<div class='reportTime'>Last Update: <b><%= reportTime %></b><div>" +
+                  "<div>Weather Station: <b><%= weatherStationIcao %></b><div>" +
+                  "<div class='temperatureCelsius'>Temperature: <b><%= temperatureCelsius %>&deg;C</b><div>" + 
+                  "<div class='dewPointCelsius'>Dewpoint: <b><%= dewPointCelsius %>&deg;C</b><div>" + 
+                  "<div class='speedKnots'>Wind:<b><%= conditions.wind.speedKnots %> Knots</b><div>" +
+                  "<div class='directionIsVariable'>Variable Direction: <b><%= conditions.wind.directionIsVariable %></b><div>" +
+                  "<div class='miles'>Visibility: <b><%= conditions.visibility.miles %>Miles</b><div>" +
+                "</div>";
+      }
+
+      function createWindowInfoTemplate() { 
+        return "<div id='content'>"+
+                  "<div id='siteNotice'></div>" +
+                  "<h1 id='firstHeading' class='firstHeading'><%= airportName %></h1>"+
+                  "<div id='bodyContent'>"+
+                    "<div><p><i>Brought to you by <a href='http://www.flightstats.com/'>Flighstats</a>" +  
+                    " streamed by <a href='streamdata.io'>streamdata.io</a></i></p></div>" +
+                    "<span>Airport Code:<b> <%= airportCode %> (<%= airportStatus %>) </b></span><br/>" +
+                    "<ul class='tabs'>" + 
+                      "<li><input type='radio' checked name='tabs' id='tab1'>" +
+                        "<label for='tab1'>Departures</label>" + 
+                        "<div id='tab-content1' class='tab-content'></div></li>" +
+                      "<li><input type='radio' name='tabs' id='tab2'>" +
+                        "<label for='tab2'>Arrivals</label>" + 
+                        "<div id='tab-content2' class='tab-content'></div></li>" +
+                      "<li><input type='radio' name='tabs' id='tab3'>" +
+                        "<label for='tab3'>Metar Weather</label>" + 
+                        "<div id='tab-content3' class='tab-content'></div></li>" + 
+                    "</ul>" +
+                  "</div>" +
+                "</div>";
+      }
+
+      function printAirport(airport) {
+        console.log('----' + airport.name + "-----");
+        console.log('Airport Code: ' + airport.fs);
+        console.log('latitude: ' + airport.latitude);
+        console.log('longitude: ' + airport.longitude);
+        console.log('cityCode: ' + airport.cityCode);
+        console.log('city: ' + airport.city);
+        console.log('elevationFeet: ' + airport.elevationFeet);
+        console.log('timeZoneRegionName: ' + airport.timeZoneRegionName);
+        console.log('active: ' + airport.active);
+        console.log('---------------------------');
+      }
+
+    </script>
+  </head>
+  <body>
+    <div id="map-canvas"></div>
+    <div id="legend">
+      <h3>Legend</h3>
+      <img src="./img/Takeoff_the_plane_32.png" alt="Airport Icon"> Airport
+    </div>
+    <div id="countrypanel">
+      <b>Country: </b>
+      <select id="country" onchange="changeCountry();">
+        <option value="FR">France</option>
+        <option value="GB">England</option>        
+      </select>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,217 @@
+html, body, #map-canvas { 
+	height: 100%; 
+	margin: 0; 
+	padding: 0;
+} 
+
+div > b {
+	-moz-transition: all 1s;
+	-webkit-transition: all 1s; /* Safari */
+	transition: all 1s;	
+}
+
+.mapIconLabelGreen { 
+	font-size: 10px; 
+	font-weight: bold; 
+	color: #003300; 
+	text-align: center; 
+	width: 32px; 
+}
+
+.mapIconLabelRed { 
+	font-size: 10px; 
+	font-weight: bold; 
+	color: #FFCCCC; 
+	text-align: center; 
+	width: 32px; 
+}
+#legend { 
+	background: white;
+	padding: 0px 20px 10px 20px;
+	margin: 10px;
+	border: 1px solid #999; 
+	vertical-align: middle;
+}
+#legend img {  
+	vertical-align: middle;
+	margin-right: 10px;
+}
+#countrypanel { 
+	position: absolute; 
+	top: 5px; 
+	left: 50%; 
+	margin-left: -180px; 
+	z-index: 5; 
+	background-color: #fff; 
+	padding: 5px; 
+	border: 1px solid #999; 
+}
+.gm-style-iw > div > div > div {
+	height: 500px;
+}
+h1.firstHeading {
+	margin-top: 0px;
+}
+
+#metarInfo {
+	font-size:12px;
+	font-family:Arial;
+	font-weight:normal;
+	color:#565656;
+}
+
+.FIDSTable {
+	margin:0px;
+	padding:0px;
+	width:100%;
+	box-shadow: 3px 3px 1px #888888;
+	border:1px solid #e5e5e5;
+	max-height: 200px;
+	overflow: scroll;
+	
+	-moz-border-radius-bottomleft:0px;
+	-webkit-border-bottom-left-radius:0px;
+	border-bottom-left-radius:0px;
+	
+	-moz-border-radius-bottomright:0px;
+	-webkit-border-bottom-right-radius:0px;
+	border-bottom-right-radius:0px;
+	
+	-moz-border-radius-topright:0px;
+	-webkit-border-top-right-radius:0px;
+	border-top-right-radius:0px;
+	
+	-moz-border-radius-topleft:0px;
+	-webkit-border-top-left-radius:0px;
+	border-top-left-radius:0px;
+}
+.FIDSTable table {
+    border-collapse: collapse;
+        border-spacing: 0;
+	width:100%;
+	height:100%;
+	margin:0px;padding:0px;
+}
+.FIDSTable tr:last-child td:last-child {
+	-moz-border-radius-bottomright:0px;
+	-webkit-border-bottom-right-radius:0px;
+	border-bottom-right-radius:0px;
+}
+.FIDSTable table tr:first-child td:first-child {
+	-moz-border-radius-topleft:0px;
+	-webkit-border-top-left-radius:0px;
+	border-top-left-radius:0px;
+}
+.FIDSTable table tr:first-child td:last-child {
+	-moz-border-radius-topright:0px;
+	-webkit-border-top-right-radius:0px;
+	border-top-right-radius:0px;
+}
+.FIDSTable tr:last-child td:first-child {
+	-moz-border-radius-bottomleft:0px;
+	-webkit-border-bottom-left-radius:0px;
+	border-bottom-left-radius:0px;
+}
+.FIDSTable tr:hover td {
+	
+}
+.FIDSTable tr:nth-child(odd) { 
+	background-color:#cccccc; 
+}
+.FIDSTable tr:nth-child(even) { 
+	background-color:#ffffff; 
+}
+.FIDSTable td {
+	vertical-align:middle;
+	/*border:1px solid #e5e5e5;*/
+	border-width:0px 1px 1px 0px;
+	text-align:center;
+	padding:7px;
+	font-size:10px;
+	font-family:Arial;
+	font-weight:normal;
+	color:#565656;
+}.FIDSTable tr:last-child td {
+	border-width:0px 1px 0px 0px;
+}.FIDSTable tr td:last-child {
+	border-width:0px 0px 1px 0px;
+}.FIDSTable tr:last-child td:last-child {
+	border-width:0px 0px 0px 0px;
+}
+.FIDSTable tr:first-child td {
+	border-width:0px 0px 1px 1px;
+	font-size:11px;
+	font-family:Arial;
+	color: white;
+	background-color: #08C;
+	border:0px solid #e5e5e5;
+	text-align:center;
+	padding: 0px;
+}
+
+.FIDSTable tr:first-child td:first-child{
+	border-width:0px 0px 1px 0px;
+}
+.FIDSTable tr:first-child td:last-child{
+	border-width:0px 0px 1px 1px;
+}
+
+.tabs input[type=radio] {
+    display:none;
+}
+ 
+.tabs {
+    width: 650px;
+    float: none;
+    list-style: none;
+    position: relative;
+    padding: 0;
+    margin: 0px auto;
+}
+ 
+.tabs li{
+    float: left;
+    margin-top: 10px;
+}
+ 
+.tabs label {
+    display: block;
+    padding: 7px 20px;
+    color: #FFFFFF;
+    font-size: 11px;
+    font-weight: normal;
+    background: #2c3e50;
+    cursor: pointer;
+    position: relative;
+}
+ 
+.tabs label:hover {
+    background: #3498db;
+}
+ 
+.tab-content {
+    z-index: 2;
+    display: none;
+    left: 0;
+    width: 100%;
+    font-size: 20px;
+    line-height: 140%;
+    padding: 15px;
+    position: absolute;
+    box-sizing: border-box;
+    border:1px solid #F5F5F5;
+    border-top: 5px solid #08C;
+    background-color:#ffffff;
+}
+
+[id^=tab]:checked + label {
+    background: #08C;
+    color: white;
+    top: 0;
+}
+ 
+[id^=tab]:checked ~ [id^=tab-content] {
+    display: block;
+}
+
+
