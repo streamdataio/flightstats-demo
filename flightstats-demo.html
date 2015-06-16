@@ -14,10 +14,9 @@
     <script type="text/javascript">
 
       // ADD YOUR STREAMDATA.IO API KEY PAIR HERE
+      var streamdataioAppToken = "[YOUR_STREAMDATAIO_APP_TOKEN]"; 
       var flightStatsAppID = "[YOUR_FLIGHTSTATS_APP_ID]";
       var flightStatsAppToken = "[YOUR_FLIGHTSTATS_APP_TOKEN]"; 
-      streamdataio.Pk = "[YOUR_STREAMDATA.IO_PUBLIC_KEY]";
-      streamdataio.pk = "[YOUR_STREAMDATA.IO_PRIVATE_KEY]";
       
       var countryPositions = [];
       countryPositions['FR']  = new google.maps.LatLng(46.227638,2.213749);
@@ -133,7 +132,7 @@
         /* Create and subscribe to 3 differents sources of information for 
         currently selected airport (arrivals, departures and weather) */
 
-        departuresEventSource = streamdataio.createEventSource(fidsDeparturesURL);
+        departuresEventSource = streamdataio.createEventSource(fidsDeparturesURL, streamdataioAppToken);
         departuresEventSource.onData(function(data){
          // initialize your data with the initial snapshot
          departures = data;
@@ -146,7 +145,7 @@
            console.error(error);
         });
 
-        arrivalsEventSource = streamdataio.createEventSource(fidsArrivalsURL);
+        arrivalsEventSource = streamdataio.createEventSource(fidsArrivalsURL, streamdataioAppToken);
         arrivalsEventSource.onData(function(data){
          // initialize your data with the initial snapshot
          arrivals = data;
@@ -161,7 +160,7 @@
            console.error(error);
         });
 
-        weatherEventSource = streamdataio.createEventSource(weatherMetarURL);
+        weatherEventSource = streamdataio.createEventSource(weatherMetarURL, streamdataioAppToken);
         weatherEventSource.onData(function(data){
           // initialize your data with the initial snapshot
           if(typeof data['metar'] !== 'undefined') {
